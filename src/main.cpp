@@ -62,7 +62,7 @@ void fetchAndSaveData(){
     }
     http.end();
 }
-// test
+
 void readFile(){
     File file = SPIFFS.open("/data/clouds.json", "r");
     if(!file){
