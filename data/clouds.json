@@ -4,9 +4,9 @@
         "name": "",
         "height": 11,
         "timezone_abbrevation": "CEST",
-        "latitude": 59.34,
+        "latitude": 0.0,
         "modelrun_utc": "2024-10-20 11:15",
-        "longitude": 17.94,
+        "longitude": 0.0,
         "utc_timeoffset": 2.0,
         "generation_time_ms": 9.120941
     },
