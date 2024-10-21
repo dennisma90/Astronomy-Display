@@ -2,8 +2,11 @@
 #include <WiFi.h>
 #include "credentials.h"
 #include <HTTPClient.h>
+#include <FS.h>
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
+#include <TimeLib.h>
+
 
 
 /**
@@ -63,73 +66,67 @@ void fetchAndSaveData(){
     http.end();
 }
 
-void readFile(){
+/**
+ * @brief Extracts values from /data/clouds.json and manipulates them
+ */
+void manipulateCloudsData()
+{
+    // Open the JSON file
     File file = SPIFFS.open("/data/clouds.json", "r");
-    if(!file){
+    if (!file)
+    {
         Serial.println("Failed to open file for reading");
         return;
     }
 
+    // Parse the JSON file
     JsonDocument jsonDoc;
     DeserializationError error = deserializeJson(jsonDoc, file);
-
     if (error) {
         Serial.print(F("deserializeJson() failed: "));
         Serial.println(error.f_str());
         return;
     }
 
-    JsonVariant time = jsonDoc["data_day"]["time"];
+    JsonVariant day_time = jsonDoc["data_day"]["time"];
+    JsonVariant day_sunset = jsonDoc["data_day"]["sunset"];
+    JsonVariant day_sunrise = jsonDoc["data_day"]["sunrise"];
+    JsonVariant xmin_time = jsonDoc["data_xmin"]["time"];
 
-    if (time.is<JsonArray>()) {
-        JsonArray time_array = time.as<JsonArray>();
-        Serial.println("Select a time index:");
-        for (int i = 0; i < time_array.size(); i++) {
-            Serial.print(i);
-            Serial.print(": ");
-            Serial.println(time_array[i].as<String>());
-        }
+    // Create the list
+    String night_duration[2];
+    night_duration[0] = day_time[0].as<String>() + " " + day_sunset[0].as<String>();
+    night_duration[1] = day_time[1].as<String>() + " " + day_sunrise[1].as<String>();
+    
+    // Print the list
+    Serial.println(night_duration[0]);
+    Serial.println(night_duration[1]);
 
-        int index;
-        Serial.print("Enter the index: ");
-        while (!Serial.available()) {}
-        index = Serial.parseInt();
+    time_t night_start, night_end;
+    struct tm tm = {0}; // Initialize the tm struct to zero
 
-        if (index >= 0 && index < time_array.size()) {
-            JsonVariant fog_probability = jsonDoc["data_day"]["fog_probability"];
-            JsonVariant totalcloudcover_max = jsonDoc["data_day"]["totalcloudcover_max"];
-            JsonVariant lowclouds_max = jsonDoc["data_day"]["lowclouds_max"];
-            JsonVariant midclouds_mean = jsonDoc["data_day"]["midclouds_mean"];
+    strptime(night_duration[0].c_str(), "%Y-%m-%d %H:%M", &tm);
+    tm.tm_year -= 1900; // Adjust the year to be relative to 1900
+    tm.tm_mon -= 1; // Adjust the month to be 0-based
+    night_start = mktime(&tm);
 
-            if (fog_probability.is<JsonArray>()) {
-                JsonArray fog_probability_array = fog_probability.as<JsonArray>();
-                Serial.print("Fog Probability: ");
-                Serial.println(fog_probability_array[index].as<int>());
-            }
+    strptime(night_duration[1].c_str(), "%Y-%m-%d %H:%M", &tm);
+    tm.tm_year -= 1900; // Adjust the year to be relative to 1900
+    tm.tm_mon -= 1; // Adjust the month to be 0-based
+    night_end = mktime(&tm);
 
-            if (totalcloudcover_max.is<JsonArray>()) {
-                JsonArray totalcloudcover_max_array = totalcloudcover_max.as<JsonArray>();
-                Serial.print("Total Cloud Cover Max: ");
-                Serial.println(totalcloudcover_max_array[index].as<int>());
-            }
+    Serial.println(night_start);
+    Serial.println(night_end);
 
-            if (lowclouds_max.is<JsonArray>()) {
-                JsonArray lowclouds_max_array = lowclouds_max.as<JsonArray>();
-                Serial.print("Low Clouds Max: ");
-                Serial.println(lowclouds_max_array[index].as<int>());
-            }
+    time_t time_diff = night_end - night_start;
+    int hours = time_diff / 3600;
+    int minutes = (time_diff % 3600) / 60;
 
-            if (midclouds_mean.is<JsonArray>()) {
-                JsonArray midclouds_mean_array = midclouds_mean.as<JsonArray>();
-                Serial.print("Mid Clouds Mean: ");
-                Serial.println(midclouds_mean_array[index].as<int>());
-            }
-        } else {
-            Serial.println("Invalid index");
-        }
-    }
-
-    file.close();
+    Serial.print("Time difference: ");
+    Serial.print(hours);
+    Serial.print(" hours and ");
+    Serial.print(minutes);
+    Serial.println(" minutes");
 }
 
 void setup(){
@@ -148,8 +145,8 @@ void setup(){
     // Fetch data from API and save it to a file
     // fetchAndSaveData();
 
-    // Read and print the contents of the file
-    readFile();
+    manipulateCloudsData();
+
 }
 
 void loop(){}
